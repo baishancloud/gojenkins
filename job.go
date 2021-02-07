@@ -16,7 +16,6 @@ package gojenkins
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -120,7 +119,7 @@ func (j *Job) GetDetails() *JobResponse {
 	return j.Raw
 }
 
-func (j *Job) GetBuild(ctx context.Context, id int64) (*Build, error) {
+func (j *Job) GetBuild(id int64) (*Build, error) {
 	// use job embedded URL to properly handle jobs in folders
 	url, err := url.Parse(j.Raw.URL)
 	if err != nil {
@@ -128,7 +127,7 @@ func (j *Job) GetBuild(ctx context.Context, id int64) (*Build, error) {
 	}
 	jobURL := url.Path
 	build := Build{Jenkins: j.Jenkins, Job: j, Raw: new(BuildResponse), Depth: 1, Base: jobURL + "/" + strconv.FormatInt(id, 10)}
-	status, err := build.Poll(ctx)
+	status, err := build.Poll()
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +137,7 @@ func (j *Job) GetBuild(ctx context.Context, id int64) (*Build, error) {
 	return nil, errors.New(strconv.Itoa(status))
 }
 
-func (j *Job) getBuildByType(ctx context.Context, buildType string) (*Build, error) {
+func (j *Job) getBuildByType(buildType string) (*Build, error) {
 	allowed := map[string]JobBuild{
 		"lastStableBuild":     j.Raw.LastStableBuild,
 		"lastSuccessfulBuild": j.Raw.LastSuccessfulBuild,
@@ -159,7 +158,7 @@ func (j *Job) getBuildByType(ctx context.Context, buildType string) (*Build, err
 		Job:     j,
 		Raw:     new(BuildResponse),
 		Base:    j.Base + "/" + number}
-	status, err := build.Poll(ctx)
+	status, err := build.Poll()
 	if err != nil {
 		return nil, err
 	}
@@ -169,36 +168,36 @@ func (j *Job) getBuildByType(ctx context.Context, buildType string) (*Build, err
 	return nil, errors.New(strconv.Itoa(status))
 }
 
-func (j *Job) GetLastSuccessfulBuild(ctx context.Context) (*Build, error) {
-	return j.getBuildByType(ctx, "lastSuccessfulBuild")
+func (j *Job) GetLastSuccessfulBuild() (*Build, error) {
+	return j.getBuildByType("lastSuccessfulBuild")
 }
 
-func (j *Job) GetFirstBuild(ctx context.Context) (*Build, error) {
-	return j.getBuildByType(ctx, "firstBuild")
+func (j *Job) GetFirstBuild() (*Build, error) {
+	return j.getBuildByType("firstBuild")
 }
 
-func (j *Job) GetLastBuild(ctx context.Context) (*Build, error) {
-	return j.getBuildByType(ctx, "lastBuild")
+func (j *Job) GetLastBuild() (*Build, error) {
+	return j.getBuildByType("lastBuild")
 }
 
-func (j *Job) GetLastStableBuild(ctx context.Context) (*Build, error) {
-	return j.getBuildByType(ctx, "lastStableBuild")
+func (j *Job) GetLastStableBuild() (*Build, error) {
+	return j.getBuildByType("lastStableBuild")
 }
 
-func (j *Job) GetLastFailedBuild(ctx context.Context) (*Build, error) {
-	return j.getBuildByType(ctx, "lastFailedBuild")
+func (j *Job) GetLastFailedBuild() (*Build, error) {
+	return j.getBuildByType("lastFailedBuild")
 }
 
-func (j *Job) GetLastCompletedBuild(ctx context.Context) (*Build, error) {
-	return j.getBuildByType(ctx, "lastCompletedBuild")
+func (j *Job) GetLastCompletedBuild() (*Build, error) {
+	return j.getBuildByType("lastCompletedBuild")
 }
 
-func (j *Job) GetBuildsFields(ctx context.Context, fields []string, custom interface{}) error {
+func (j *Job) GetBuildsFields(fields []string, custom interface{}) error {
 	if fields == nil || len(fields) == 0 {
 		return fmt.Errorf("one or more field value needs to be specified")
 	}
 	// limit overhead using builds instead of allBuilds, which returns the last 100 build
-	_, err := j.Jenkins.Requester.GetJSON(ctx, j.Base, &custom, map[string]string{"tree": "builds[" + strings.Join(fields, ",") + "]"})
+	_, err := j.Jenkins.Requester.GetJSON(j.Base, &custom, map[string]string{"tree": "builds[" + strings.Join(fields, ",") + "]"})
 	if err != nil {
 		return err
 	}
@@ -206,11 +205,11 @@ func (j *Job) GetBuildsFields(ctx context.Context, fields []string, custom inter
 }
 
 // Returns All Builds with Number and URL
-func (j *Job) GetAllBuildIds(ctx context.Context) ([]JobBuild, error) {
+func (j *Job) GetAllBuildIds() ([]JobBuild, error) {
 	var buildsResp struct {
 		Builds []JobBuild `json:"allBuilds"`
 	}
-	_, err := j.Jenkins.Requester.GetJSON(ctx, j.Base, &buildsResp, map[string]string{"tree": "allBuilds[number,url]"})
+	_, err := j.Jenkins.Requester.GetJSON(j.Base, &buildsResp, map[string]string{"tree": "allBuilds[number,url]"})
 	if err != nil {
 		return nil, err
 	}
@@ -229,10 +228,10 @@ func (j *Job) GetInnerJobsMetadata() []InnerJob {
 	return j.Raw.Jobs
 }
 
-func (j *Job) GetUpstreamJobs(ctx context.Context) ([]*Job, error) {
+func (j *Job) GetUpstreamJobs() ([]*Job, error) {
 	jobs := make([]*Job, len(j.Raw.UpstreamProjects))
 	for i, job := range j.Raw.UpstreamProjects {
-		ji, err := j.Jenkins.GetJob(ctx, job.Name)
+		ji, err := j.Jenkins.GetJob(job.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -241,10 +240,10 @@ func (j *Job) GetUpstreamJobs(ctx context.Context) ([]*Job, error) {
 	return jobs, nil
 }
 
-func (j *Job) GetDownstreamJobs(ctx context.Context) ([]*Job, error) {
+func (j *Job) GetDownstreamJobs() ([]*Job, error) {
 	jobs := make([]*Job, len(j.Raw.DownstreamProjects))
 	for i, job := range j.Raw.DownstreamProjects {
-		ji, err := j.Jenkins.GetJob(ctx, job.Name)
+		ji, err := j.Jenkins.GetJob(job.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -253,9 +252,9 @@ func (j *Job) GetDownstreamJobs(ctx context.Context) ([]*Job, error) {
 	return jobs, nil
 }
 
-func (j *Job) GetInnerJob(ctx context.Context, id string) (*Job, error) {
+func (j *Job) GetInnerJob(id string) (*Job, error) {
 	job := Job{Jenkins: j.Jenkins, Raw: new(JobResponse), Base: j.Base + "/job/" + id}
-	status, err := job.Poll(ctx)
+	status, err := job.Poll()
 	if err != nil {
 		return nil, err
 	}
@@ -265,10 +264,10 @@ func (j *Job) GetInnerJob(ctx context.Context, id string) (*Job, error) {
 	return nil, errors.New(strconv.Itoa(status))
 }
 
-func (j *Job) GetInnerJobs(ctx context.Context) ([]*Job, error) {
+func (j *Job) GetInnerJobs() ([]*Job, error) {
 	jobs := make([]*Job, len(j.Raw.Jobs))
 	for i, job := range j.Raw.Jobs {
-		ji, err := j.GetInnerJob(ctx, job.Name)
+		ji, err := j.GetInnerJob(job.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -277,8 +276,8 @@ func (j *Job) GetInnerJobs(ctx context.Context) ([]*Job, error) {
 	return jobs, nil
 }
 
-func (j *Job) Enable(ctx context.Context) (bool, error) {
-	resp, err := j.Jenkins.Requester.Post(ctx, j.Base+"/enable", nil, nil, nil)
+func (j *Job) Enable() (bool, error) {
+	resp, err := j.Jenkins.Requester.Post(j.Base+"/enable", nil, nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -288,8 +287,8 @@ func (j *Job) Enable(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (j *Job) Disable(ctx context.Context) (bool, error) {
-	resp, err := j.Jenkins.Requester.Post(ctx, j.Base+"/disable", nil, nil, nil)
+func (j *Job) Disable() (bool, error) {
+	resp, err := j.Jenkins.Requester.Post(j.Base+"/disable", nil, nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -299,8 +298,8 @@ func (j *Job) Disable(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (j *Job) Delete(ctx context.Context) (bool, error) {
-	resp, err := j.Jenkins.Requester.Post(ctx, j.Base+"/doDelete", nil, nil, nil)
+func (j *Job) Delete() (bool, error) {
+	resp, err := j.Jenkins.Requester.Post(j.Base+"/doDelete", nil, nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -310,41 +309,41 @@ func (j *Job) Delete(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (j *Job) Rename(ctx context.Context, name string) (bool, error) {
+func (j *Job) Rename(name string) (bool, error) {
 	data := url.Values{}
 	data.Set("newName", name)
-	_, err := j.Jenkins.Requester.Post(ctx, j.Base+"/doRename", bytes.NewBufferString(data.Encode()), nil, nil)
+	_, err := j.Jenkins.Requester.Post(j.Base+"/doRename", bytes.NewBufferString(data.Encode()), nil, nil)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (j *Job) Create(ctx context.Context, config string, qr ...interface{}) (*Job, error) {
+func (j *Job) Create(config string, qr ...interface{}) (*Job, error) {
 	var querystring map[string]string
 	if len(qr) > 0 {
 		querystring = qr[0].(map[string]string)
 	}
-	resp, err := j.Jenkins.Requester.PostXML(ctx, j.parentBase()+"/createItem", config, j.Raw, querystring)
+	resp, err := j.Jenkins.Requester.PostXML(j.parentBase()+"/createItem", config, j.Raw, querystring)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode == 200 {
-		j.Poll(ctx)
+		j.Poll()
 		return j, nil
 	}
 	return nil, errors.New(strconv.Itoa(resp.StatusCode))
 }
 
-func (j *Job) Copy(ctx context.Context, destinationName string) (*Job, error) {
+func (j *Job) Copy(destinationName string) (*Job, error) {
 	qr := map[string]string{"name": destinationName, "from": j.GetName(), "mode": "copy"}
-	resp, err := j.Jenkins.Requester.Post(ctx, j.parentBase()+"/createItem", nil, nil, qr)
+	resp, err := j.Jenkins.Requester.Post(j.parentBase()+"/createItem", nil, nil, qr)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode == 200 {
 		newJob := &Job{Jenkins: j.Jenkins, Raw: new(JobResponse), Base: "/job/" + destinationName}
-		_, err := newJob.Poll(ctx)
+		_, err := newJob.Poll()
 		if err != nil {
 			return nil, err
 		}
@@ -353,33 +352,33 @@ func (j *Job) Copy(ctx context.Context, destinationName string) (*Job, error) {
 	return nil, errors.New(strconv.Itoa(resp.StatusCode))
 }
 
-func (j *Job) UpdateConfig(ctx context.Context, config string) error {
+func (j *Job) UpdateConfig(config string) error {
 
 	var querystring map[string]string
 
-	resp, err := j.Jenkins.Requester.PostXML(ctx, j.Base+"/config.xml", config, nil, querystring)
+	resp, err := j.Jenkins.Requester.PostXML(j.Base+"/config.xml", config, nil, querystring)
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode == 200 {
-		j.Poll(ctx)
+		j.Poll()
 		return nil
 	}
 	return errors.New(strconv.Itoa(resp.StatusCode))
 
 }
 
-func (j *Job) GetConfig(ctx context.Context) (string, error) {
+func (j *Job) GetConfig() (string, error) {
 	var data string
-	_, err := j.Jenkins.Requester.GetXML(ctx, j.Base+"/config.xml", &data, nil)
+	_, err := j.Jenkins.Requester.GetXML(j.Base+"/config.xml", &data, nil)
 	if err != nil {
 		return "", err
 	}
 	return data, nil
 }
 
-func (j *Job) GetParameters(ctx context.Context) ([]ParameterDefinition, error) {
-	_, err := j.Poll(ctx)
+func (j *Job) GetParameters() ([]ParameterDefinition, error) {
+	_, err := j.Poll()
 	if err != nil {
 		return nil, err
 	}
@@ -390,26 +389,26 @@ func (j *Job) GetParameters(ctx context.Context) ([]ParameterDefinition, error) 
 	return parameters, nil
 }
 
-func (j *Job) IsQueued(ctx context.Context) (bool, error) {
-	if _, err := j.Poll(ctx); err != nil {
+func (j *Job) IsQueued() (bool, error) {
+	if _, err := j.Poll(); err != nil {
 		return false, err
 	}
 	return j.Raw.InQueue, nil
 }
 
-func (j *Job) IsRunning(ctx context.Context) (bool, error) {
-	if _, err := j.Poll(ctx); err != nil {
+func (j *Job) IsRunning() (bool, error) {
+	if _, err := j.Poll(); err != nil {
 		return false, err
 	}
-	lastBuild, err := j.GetLastBuild(ctx)
+	lastBuild, err := j.GetLastBuild()
 	if err != nil {
 		return false, err
 	}
-	return lastBuild.IsRunning(ctx), nil
+	return lastBuild.IsRunning(), nil
 }
 
-func (j *Job) IsEnabled(ctx context.Context) (bool, error) {
-	if _, err := j.Poll(ctx); err != nil {
+func (j *Job) IsEnabled() (bool, error) {
+	if _, err := j.Poll(); err != nil {
 		return false, err
 	}
 	return j.Raw.Color != "disabled", nil
@@ -419,8 +418,8 @@ func (j *Job) HasQueuedBuild() {
 	panic("Not Implemented yet")
 }
 
-func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64, error) {
-	isQueued, err := j.IsQueued(ctx)
+func (j *Job) InvokeSimple(params map[string]string) (int64, error) {
+	isQueued, err := j.IsQueued()
 	if err != nil {
 		return 0, err
 	}
@@ -430,7 +429,7 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 	}
 
 	endpoint := "/build"
-	parameters, err := j.GetParameters(ctx)
+	parameters, err := j.GetParameters()
 	if err != nil {
 		return 0, err
 	}
@@ -441,7 +440,7 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 	for k, v := range params {
 		data.Set(k, v)
 	}
-	resp, err := j.Jenkins.Requester.Post(ctx, j.Base+endpoint, bytes.NewBufferString(data.Encode()), nil, nil)
+	resp, err := j.Jenkins.Requester.Post(j.Base+endpoint, bytes.NewBufferString(data.Encode()), nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -468,8 +467,8 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 	return number, nil
 }
 
-func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, params map[string]string, cause string, securityToken string) (bool, error) {
-	isQueued, err := j.IsQueued(ctx)
+func (j *Job) Invoke(files []string, skipIfRunning bool, params map[string]string, cause string, securityToken string) (bool, error) {
+	isQueued, err := j.IsQueued()
 	if err != nil {
 		return false, err
 	}
@@ -477,7 +476,7 @@ func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, pa
 		Error.Printf("%s is already running", j.GetName())
 		return false, nil
 	}
-	isRunning, err := j.IsRunning(ctx)
+	isRunning, err := j.IsRunning()
 	if err != nil {
 		return false, err
 	}
@@ -506,7 +505,7 @@ func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, pa
 
 	buildParams["json"] = string(makeJson(params))
 	b, _ := json.Marshal(buildParams)
-	resp, err := j.Jenkins.Requester.PostFiles(ctx, j.Base+base, bytes.NewBuffer(b), nil, reqParams, files)
+	resp, err := j.Jenkins.Requester.PostFiles(j.Base+base, bytes.NewBuffer(b), nil, reqParams, files)
 	if err != nil {
 		return false, err
 	}
@@ -516,17 +515,17 @@ func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, pa
 	return false, errors.New(strconv.Itoa(resp.StatusCode))
 }
 
-func (j *Job) Poll(ctx context.Context) (int, error) {
-	response, err := j.Jenkins.Requester.GetJSON(ctx, j.Base, j.Raw, nil)
+func (j *Job) Poll() (int, error) {
+	response, err := j.Jenkins.Requester.GetJSON(j.Base, j.Raw, nil)
 	if err != nil {
 		return 0, err
 	}
 	return response.StatusCode, nil
 }
 
-func (j *Job) History(ctx context.Context) ([]*History, error) {
+func (j *Job) History() ([]*History, error) {
 	var s string
-	_, err := j.Jenkins.Requester.Get(ctx, j.Base+"/buildHistory/ajax", &s, nil)
+	_, err := j.Jenkins.Requester.Get(j.Base+"/buildHistory/ajax", &s, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -534,8 +533,8 @@ func (j *Job) History(ctx context.Context) ([]*History, error) {
 	return parseBuildHistory(strings.NewReader(s)), nil
 }
 
-func (pr *PipelineRun) ProceedInput(ctx context.Context) (bool, error) {
-	actions, _ := pr.GetPendingInputActions(ctx)
+func (pr *PipelineRun) ProceedInput() (bool, error) {
+	actions, _ := pr.GetPendingInputActions()
 	data := url.Values{}
 	data.Set("inputId", actions[0].ID)
 	params := make(map[string]string)
@@ -543,7 +542,7 @@ func (pr *PipelineRun) ProceedInput(ctx context.Context) (bool, error) {
 
 	href := pr.Base + "/wfapi/inputSubmit"
 
-	resp, err := pr.Job.Jenkins.Requester.Post(ctx, href, bytes.NewBufferString(data.Encode()), nil, nil)
+	resp, err := pr.Job.Jenkins.Requester.Post(href, bytes.NewBufferString(data.Encode()), nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -553,15 +552,15 @@ func (pr *PipelineRun) ProceedInput(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (pr *PipelineRun) AbortInput(ctx context.Context) (bool, error) {
-	actions, _ := pr.GetPendingInputActions(ctx)
+func (pr *PipelineRun) AbortInput() (bool, error) {
+	actions, _ := pr.GetPendingInputActions()
 	data := url.Values{}
 	params := make(map[string]string)
 	data.Set("json", makeJson(params))
 
 	href := pr.Base + "/input/" + actions[0].ID + "/abort"
 
-	resp, err := pr.Job.Jenkins.Requester.Post(ctx, href, bytes.NewBufferString(data.Encode()), nil, nil)
+	resp, err := pr.Job.Jenkins.Requester.Post(href, bytes.NewBufferString(data.Encode()), nil, nil)
 	if err != nil {
 		return false, err
 	}

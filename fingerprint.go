@@ -15,7 +15,6 @@
 package gojenkins
 
 import (
-	"context"
 	"errors"
 	"fmt"
 )
@@ -46,8 +45,8 @@ type FingerPrintResponse struct {
 	} `json:"usage"`
 }
 
-func (f FingerPrint) Valid(ctx context.Context) (bool, error) {
-	status, err := f.Poll(ctx)
+func (f FingerPrint) Valid() (bool, error) {
+	status, err := f.Poll()
 
 	if err != nil {
 		return false, err
@@ -59,8 +58,8 @@ func (f FingerPrint) Valid(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (f FingerPrint) ValidateForBuild(ctx context.Context, filename string, build *Build) (bool, error) {
-	valid, err := f.Valid(ctx)
+func (f FingerPrint) ValidateForBuild(filename string, build *Build) (bool, error) {
+	valid, err := f.Valid()
 	if err != nil {
 		return false, err
 	}
@@ -79,16 +78,16 @@ func (f FingerPrint) ValidateForBuild(ctx context.Context, filename string, buil
 	return false, nil
 }
 
-func (f FingerPrint) GetInfo(ctx context.Context) (*FingerPrintResponse, error) {
-	_, err := f.Poll(ctx)
+func (f FingerPrint) GetInfo() (*FingerPrintResponse, error) {
+	_, err := f.Poll()
 	if err != nil {
 		return nil, err
 	}
 	return f.Raw, nil
 }
 
-func (f FingerPrint) Poll(ctx context.Context) (int, error) {
-	response, err := f.Jenkins.Requester.GetJSON(ctx, f.Base+f.Id, f.Raw, nil)
+func (f FingerPrint) Poll() (int, error) {
+	response, err := f.Jenkins.Requester.GetJSON(f.Base+f.Id, f.Raw, nil)
 	if err != nil {
 		return 0, err
 	}
