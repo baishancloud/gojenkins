@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -227,6 +229,7 @@ func (r *Requester) Do(ar *APIRequest, responseStruct interface{}, options ...in
 	if response, err := r.Client.Do(req); err != nil {
 		return nil, err
 	} else {
+		DebugResponse(response)
 		errorText := response.Header.Get("X-Error")
 		if errorText != "" {
 			return nil, errors.New(errorText)
@@ -240,6 +243,16 @@ func (r *Requester) Do(ar *APIRequest, responseStruct interface{}, options ...in
 
 	}
 
+}
+
+func DebugResponse(response *http.Response) {
+	if Mode() == DebugMode {
+		dump, err := httputil.DumpResponse(response, true)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("DEBUG %q\n", dump)
+	}
 }
 
 func (r *Requester) ReadRawResponse(response *http.Response, responseStruct interface{}) (*http.Response, error) {
