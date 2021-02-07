@@ -25,6 +25,23 @@ import (
 	"strings"
 )
 
+// EnvJenkinsMode indicates environment name for jenkins mode.
+const EnvJenkinsMode = "JENKINS_MODE"
+
+const (
+	// DebugMode indicates jenkins mode is debug.
+	DebugMode = "debug"
+	// ReleaseMode indicates jenkins mode is release.
+	ReleaseMode = "release"
+	// TestMode indicates jenkins mode is test.
+	TestMode = "test"
+)
+const (
+	debugCode = iota
+	releaseCode
+	testCode
+)
+
 // Basic Authentication
 type BasicAuth struct {
 	Username string
