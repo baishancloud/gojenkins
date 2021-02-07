@@ -15,7 +15,6 @@
 package gojenkins
 
 import (
-	"context"
 	"errors"
 	"strconv"
 )
@@ -43,10 +42,10 @@ var (
 )
 
 // Returns True if successfully added Job, otherwise false
-func (v *View) AddJob(ctx context.Context, name string) (bool, error) {
+func (v *View) AddJob(name string) (bool, error) {
 	url := "/addJobToView"
 	qr := map[string]string{"name": name}
-	resp, err := v.Jenkins.Requester.Post(ctx, v.Base+url, nil, nil, qr)
+	resp, err := v.Jenkins.Requester.Post(v.Base+url, nil, nil, qr)
 	if err != nil {
 		return false, err
 	}
@@ -57,10 +56,10 @@ func (v *View) AddJob(ctx context.Context, name string) (bool, error) {
 }
 
 // Returns True if successfully deleted Job, otherwise false
-func (v *View) DeleteJob(ctx context.Context, name string) (bool, error) {
+func (v *View) DeleteJob(name string) (bool, error) {
 	url := "/removeJobFromView"
 	qr := map[string]string{"name": name}
-	resp, err := v.Jenkins.Requester.Post(ctx, v.Base+url, nil, nil, qr)
+	resp, err := v.Jenkins.Requester.Post(v.Base+url, nil, nil, qr)
 	if err != nil {
 		return false, err
 	}
@@ -86,8 +85,8 @@ func (v *View) GetUrl() string {
 	return v.Raw.URL
 }
 
-func (v *View) Poll(ctx context.Context) (int, error) {
-	response, err := v.Jenkins.Requester.GetJSON(ctx, v.Base, v.Raw, nil)
+func (v *View) Poll() (int, error) {
+	response, err := v.Jenkins.Requester.GetJSON(v.Base, v.Raw, nil)
 	if err != nil {
 		return 0, err
 	}

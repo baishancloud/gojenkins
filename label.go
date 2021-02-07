@@ -14,8 +14,6 @@
 
 package gojenkins
 
-import "context"
-
 type Label struct {
 	Raw     *LabelResponse
 	Jenkins *Jenkins
@@ -55,8 +53,8 @@ func (l *Label) GetNodes() []LabelNode {
 	return l.Raw.Nodes
 }
 
-func (l *Label) Poll(ctx context.Context) (int, error) {
-	response, err := l.Jenkins.Requester.GetJSON(ctx, l.Base, l.Raw, nil)
+func (l *Label) Poll() (int, error) {
+	response, err := l.Jenkins.Requester.GetJSON(l.Base, l.Raw, nil)
 	if err != nil {
 		return 0, err
 	}
