@@ -37,7 +37,7 @@ var DefaultWriter io.Writer = os.Stdout
 var DefaultErrorWriter io.Writer = os.Stderr
 
 var jenkinsMode = debugCode
-var modeName = DebugMode
+var modeName = ReleaseMode
 
 func init() {
 	mode := os.Getenv(EnvJenkinsMode)
@@ -47,9 +47,9 @@ func init() {
 // SetMode sets jenkins mode according to input string.
 func SetMode(value string) {
 	switch value {
-	case DebugMode, "":
+	case DebugMode:
 		jenkinsMode = debugCode
-	case ReleaseMode:
+	case ReleaseMode, "":
 		jenkinsMode = releaseCode
 	case TestMode:
 		jenkinsMode = testCode
@@ -57,7 +57,7 @@ func SetMode(value string) {
 		panic("jenkins mode unknown: " + value)
 	}
 	if value == "" {
-		value = DebugMode
+		value = ReleaseMode
 	}
 	modeName = value
 }
